@@ -1,44 +1,84 @@
-import { defineAstroPaperConfig } from "./src/types/config";
+import {
+  defineConfig,
+  envField,
+  fontProviders,
+  svgoOptimizer,
+} from "astro/config";
+import tailwindcss from "@tailwindcss/vite";
+import mdx from "@astrojs/mdx";
+import sitemap from "@astrojs/sitemap";
+import { unified } from "@astrojs/markdown-remark";
+import remarkToc from "remark-toc";
+import remarkCollapse from "remark-collapse";
+import rehypeCallouts from "rehype-callouts";
+import {
+  transformerNotationDiff,
+  transformerNotationHighlight,
+  transformerNotationWordHighlight,
+} from "@shikijs/transformers";
+import { transformerFileName } from "./src/utils/transformers/fileName";
+import config from "./astro-paper.config";
 
-export default defineAstroPaperConfig({
-  url: "https://gvvv.pages.dev/",
-  title: "Gau's Blog",
-  description: "这一切",
-  author: "Gau",
-  profile: "https://oo.ct.ws/",
-  ogImage: "default-og.jpg",
-  lang: "zh-CN",
-  timezone: "Asia/Shanghai",
-  dir: "ltr",
-
-  posts: {
-    perPage: 4,
-    perIndex: 4,
-    scheduledPostMargin: 15 * 60 * 1000,
-  },
-
-  features: {
-    lightAndDarkMode: true,
-    dynamicOgImage: true,
-    showArchives: true,
-    showBackButton: true,
-    editPost: {
-      enabled: false
+export default defineConfig({
+  site: config.site.url,
+  integrations: [
+    mdx(),
+    sitemap({
+      filter: page =>
+        config.features?.showArchives !== false || !page.endsWith("/archives/"),
+    }),
+  ],
+  i18n: {
+    locales: ["en"],
+    defaultLocale: "en",
+    routing: {
+      prefixDefaultLocale: false,
     },
-    search: "pagefind",
   },
-
-  socials: [
-    { icon: "mail", url: "mailto:gau0130@outlook.com" },
-    { icon: "mastodon", url: "https://c7.io/@gau" }
+  markdown: {
+    processor: unified({
+      remarkPlugins: [
+        remarkToc,
+        [remarkCollapse, { test: "Table of contents" }],
+      ],
+      rehypePlugins: [rehypeCallouts],
+    }),
+    shikiConfig: {
+      themes: { light: "min-light", dark: "night-owl" },
+      defaultColor: false,
+      wrap: false,
+      transformers: [
+        transformerFileName({ style: "v2", hideDot: false }),
+        transformerNotationHighlight(),
+        transformerNotationWordHighlight(),
+        transformerNotationDiff({ matchAlgorithm: "v3" }),
+      ],
+    },
+  },
+  vite: {
+    plugins: [tailwindcss()],
+  },
+  fonts: [
+    {
+      name: "Google Sans Code",
+      cssVariable: "--font-google-sans-code",
+      provider: fontProviders.google(),
+      fallbacks: ["monospace"],
+      weights: [300, 400, 500, 600, 700],
+      styles: ["normal", "italic"],
+      formats: ["woff", "ttf"],
+    },
   ],
-
-  shareLinks: [
-    { name: "whatsapp", url: "https://wa.me/?text=" },
-    { name: "facebook", url: "https://www.facebook.com/sharer.php?u=" },
-    { name: "x", url: "https://x.com/intent/post?url=" },
-    { name: "telegram", url: "https://t.me/share/url?url=" },
-    { name: "pinterest", url: "https://pinterest.com/pin/create/button/?url=" },
-    { name: "mail", url: "mailto:?subject=See%20this%20post&body=" },
-  ],
+  env: {
+    schema: {
+      PUBLIC_GOOGLE_SITE_VERIFICATION: envField.string({
+        access: "public",
+        context: "client",
+        optional: true,
+      }),
+    },
+  },
+  experimental: {
+    svgOptimizer: svgoOptimizer(),
+  },
 });
